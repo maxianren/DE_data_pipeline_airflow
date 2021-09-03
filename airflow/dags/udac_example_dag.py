@@ -65,10 +65,9 @@ load_songplays_table = LoadFactOperator(
     dag=dag,
     
     redshift_conn_id="redshift",
-    aws_credentials_id="aws_credentials",
     sql_query=SqlQueries.songplay_table_insert,
-    table="songplays",
-    col_name="songplay_id, start_time, userid, level, song_id, artist_id, sessionid, location, useragent"
+    table="public.songplays",
+    col_name="playid, start_time, userid, level, songid, artistid, sessionid, location, user_agent"
 )
 
 load_user_dimension_table = LoadDimensionOperator(
