@@ -11,9 +11,16 @@ from airflow.hooks.postgres_hook import PostgresHook
 # AWS_KEY = os.environ.get('AWS_KEY')
 # AWS_SECRET = os.environ.get('AWS_SECRET')
 
+
 default_args = {
     'owner': 'udacity',
     'start_date': datetime(2019, 1, 12),
+    'end_date': datetime(2021, 1, 12),
+    'retries': 3,
+    'retry_delay': timedelta(minutes=5),
+    'email_on_retry': False,
+    'depends_on_past': False,
+    'catchup': False,
 }
 
 dag = DAG('udac_example_dag',
@@ -54,7 +61,7 @@ stage_songs_to_redshift = StageToRedshiftOperator(
     redshift_conn_id="redshift",
     aws_credentials_id="aws_credentials",
     s3_bucket="udacity-dend",
-    s3_key="song-data/A/A/A", # /A/A/A
+    s3_key="song-data/A/A", # /A/A/A
     json="auto",
     region="us-west-2"
     #'s3://udacity-dend/song_data'
@@ -72,27 +79,55 @@ load_songplays_table = LoadFactOperator(
 
 load_user_dimension_table = LoadDimensionOperator(
     task_id='Load_user_dim_table',
-    dag=dag
+    dag=dag,
+    
+    redshift_conn_id="redshift",
+    sql_query=SqlQueries.user_table_insert,
+    table="public.users",
+    truncate_flag=True
 )
 
 load_song_dimension_table = LoadDimensionOperator(
     task_id='Load_song_dim_table',
-    dag=dag
+    dag=dag,
+    
+    redshift_conn_id="redshift",
+    sql_query=SqlQueries.song_table_insert,
+    table="public.songs",
+    truncate_flag=True
 )
 
 load_artist_dimension_table = LoadDimensionOperator(
     task_id='Load_artist_dim_table',
-    dag=dag
+    dag=dag,
+    
+    redshift_conn_id="redshift",
+    sql_query=SqlQueries.artist_table_insert,
+    table="public.artists",
+    truncate_flag=True
 )
 
 load_time_dimension_table = LoadDimensionOperator(
     task_id='Load_time_dim_table',
-    dag=dag
+    dag=dag,
+    
+    redshift_conn_id="redshift",
+    sql_query=SqlQueries.time_table_insert,
+    table="public.time",
+    truncate_flag=True
 )
 
 run_quality_checks = DataQualityOperator(
     task_id='Run_data_quality_checks',
-    dag=dag
+    dag=dag,
+    
+    redshift_conn_id="redshift",
+    dq_checks=[
+        {'table':"users", 'col': "userid",  'expected_result': 0},
+        {'table':"songs", 'col': "songid", 'expected_result': 604},
+        {'table':"artists", 'col': "artistid", 'expected_result': 591},
+        {'table':"time", 'col': "start_time", 'expected_result': 0}
+    ]
 )
 
 end_operator = DummyOperator(task_id='Stop_execution',  dag=dag)
